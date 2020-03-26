@@ -1,0 +1,212 @@
+---
+title: "Portfolio 7"
+author: "Elisabet, Kasper og Liv"
+date: "25/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Comprehension tasks
+#1.a.Please explain which factor was between-participants and which were withinparticipants and why.
+  #the proportions of blue/yellow stimuli is the factor that was between-participants , i.e. the two groups. Each participant were exposed to both the predictor variable of amount of blue/yellow and amount of neutral/fearful faces, making both conditions within-participant predictors. This means, that the blue/yellow factor, is both between and within. The time and frequency of the stimuli are also within participant predictors, but the response time is the outcome.
+  
+#1.b. What was the age range of the participants?
+  #19-27 years of age
+
+```{r}
+face_exp_2016<- read.csv("face_exp_data_all_160310.csv", sep=";")
+
+face_exp_2017<- read.csv("face_exp_all_logs_2017.csv", sep=";")
+                           
+#Binding the two datasets together
+face_exp <- rbind(face_exp_2016,face_exp_2017)
+  
+#conditions are coded in the "cond_blue", "cond_emo" and "freq" variables
+
+## Setup/load packages
+pacman::p_load(tidyverse, pastecs, nlme, lmerTest, sjPlot, broom)
+```
+
+```{r}
+#2.a: make a box-plot of the data with RT on the y-axis and emotional condition on the x-axis. Make a box-plot for each of the color conditions by using “ﬁll”. Use facet_wrap() to make two seperate graphs for each frequency group. Give the boxes colors that mathces the stimuli, eg. use 
+ #" + scale_ﬁll_manual(values=c(“yellow”,“blue”,“yellow”,“blue”,“yellow”,“blue”,“yellow”,“blue”))" .
+face_exp$rt <- as.numeric(face_exp$rt)
+face_exp$cond_emo <- as.factor(face_exp$cond_emo)
+
+ggplot(face_exp, aes(x=cond_emo, y=rt, fill=img)) + 
+  geom_boxplot()+
+  facet_wrap(~freq)+
+  scale_fill_manual(values=c("yellow","blue","yellow","blue","yellow","blue","yellow","blue"))+
+labs(x = "Condition Emotion", y = " Reaction Time")
+```
+#2.b: Comprehension question. Explain why this plot shows that there is something wrong with the data.
+  #Because the plot also shows the incorrect answers. This can be deduced by the amount of responses, in frequency condition b, that were equal to less than 0.5 sec.
+
+```{r}
+#2.c.: Make a subset of the data, including only correct responses.
+correct_resps <- subset(face_exp, correct_resp == 1)
+```
+
+```{r}
+#2.d.: Make another boxplot similar to that in 2.a. Did it solve the observed problem?
+ggplot(correct_resps, aes(x=cond_emo, y=rt, fill=img)) + 
+  geom_boxplot()+
+  facet_wrap(~freq)+
+  scale_fill_manual(values=c("yellow","blue","yellow","blue","yellow","blue","yellow","blue"))+
+labs(x = "Condition Emotion", y = " Reaction Time")
+
+#it did solve the problem
+```
+
+
+```{r}
+#2.e.: Use the by() function and stat.desc (in library(pastecs)) to get descriptive measures for the diﬀerent conditions (e.g. see Field’s book chapter 5.5.3.2.). Try to investigate the three hypotheses based on the descriptivestatistics-wouldyouexpectanyofthestatisticalanalysestobesigniﬁcantbasedonthedescriptive stats?
+
+#by(correct_resps$rt, list(correct_resps$cond_emo, correct_resps$cond_blue, correct_resps$freq), stat.desc, basic = FALSE, norm=T) -- the code below, written in a single line
+
+#H1: The index ﬁnger (blue) trials will lead to a shorter response time than middle ﬁnger (yellow) trials.
+by(correct_resps$rt, list(correct_resps$cond_blue), stat.desc, basic = FALSE, norm=T)
+
+#H2: Fearful faces will yield a shorter response time than neutral.
+by(correct_resps$rt, list(correct_resps$cond_emo), stat.desc, basic = FALSE, norm=T)
+
+#H3: Infrequent stimuli will yield longer responses time than frequent. This should surface as an interaction between color and frequency group.
+by(correct_resps$rt, list(correct_resps$freq), stat.desc, basic = FALSE, norm=T)
+```
+H1: the two means for response time in regards to index finger are only slightly different, which is less than expected before running the trials.
+H2: the two means for the emotion exposed to the participant, i.e. the smiley, are only slightly different, which is less than expected before running the trials.
+H3: the two means for the frequency are only slightly different, which is less than expected before running the trials.
+
+```{r}
+#2.f.: Explore if the RT data is normally distributed using a qq-plot (e.g. qqnorm()). 
+ggplot(correct_resps, aes(sample = rt)) + stat_qq() + stat_qq_line(colour = "red")
+#it is not
+```
+
+```{r}
+#2.g.: log-transform the RT data.
+face_exp_trans <- correct_resps %>% mutate(rt_log = log(correct_resps$rt))
+```
+
+```{r}
+#2.h.: Use a qq-plot to explore if the transformed data appear more normal than the untransformed.
+ggplot(face_exp_trans, aes(sample = rt_log)) + stat_qq() + stat_qq_line(colour = "red")
+```
+
+```{r}
+#2.i.: Make a plot that explores the response times for participants, individually, using a box-plot. Does anybody stick out as unusual?
+ggplot(correct_resps, aes(x=ID, y=rt, fill=ID)) + 
+  geom_boxplot()+
+  labs(x = "Participant", y = " Reaction Time")
+```
+Anders has a much higher mean response time than most of the others.
+Camille has much variation in her own responses, which can be seen from the upper and lower quartile being large. 
+Also, Julie, Savannah, Alberte and Martin are the only ones who have outliers below 0.5.
+
+```{r}
+#3.a Make mixed eﬀects model where you predict reaction time using the three factors as ﬁxed eﬀects, and include random intercepts for each participant (use “ID” from the log). Include 2-way and 3-way interactions as well. To do this use lme() from the “nlme” package, and use maximum-likelihood as estimation method( method = “ML”).
+
+str(correct_resps) #checking for classes in the dataframe
+
+model1 <- lmer(rt ~ cond_blue + (1 | ID), face_exp_trans, REML= FALSE)
+
+model2 <- lmer(rt ~ cond_emo + (1 | ID), face_exp_trans, REML= FALSE)
+
+model3 <- lmer(rt ~ freq + (1 | ID), face_exp_trans, REML= FALSE)
+
+model4 <- lmer(rt ~ cond_blue * cond_emo + (1 | ID), face_exp_trans, REML= FALSE)
+
+model5 <- lmer(rt ~ cond_blue * freq + (1 | ID), face_exp_trans, REML= FALSE)
+
+model6 <- lmer(rt ~ freq * cond_emo + (1 | ID), face_exp_trans, REML= FALSE)
+
+model7 <- lmer(rt ~ cond_emo * freq * cond_blue + (1 | ID), face_exp_trans, REML= FALSE)
+
+#making a df to see which model has the best AIC value
+m_aic <- AIC(model1, model2, model3, model4, model5, model6, model7)
+mdl_com_df <- tibble( Model = c("model1", "model2", "model3", "model4", "model5", "model6", "model7"),
+                          AIC=m_aic$AIC,)
+
+mdl_com_df
+```
+Model 7 has the best AIC value, -2137.346
+
+```{r}
+#3.b.: Report the t-statistics using summary().
+summary(model7) 
+```
+The cond_blue has a significant value of t(2180)=-2.79, p<0.05, so does the 2 way interactions of cond_emo*cond_blue t(2180)=2.168, p<0.05, and freq*cond_blue t(2180)=2.254, p<0.05.
+
+
+```{r}
+#3.c.: Report the F-statistics using anova() and type=‘sequential’, which gives you type=‘I’ analysis.
+anova(model7, type='I')
+```
+The cond_emo*cond_blue, F(2180.15)=5.618, p<0.05, and freq*cond_blue, F(2180.62)=5.310, p<0.05, are both siginficant.
+
+```{r}
+#3.d.: Report the F-statistics using anova() and type=‘marginal’. Why might there be diﬀerences between results from 3.c and 3.d?
+anova(model7, type = 'marginal')
+```
+The cond_blue, F(2180.33)=7.755, p<0.05, cond_emo*cond_blue, F(2180.29)=4.700, p<0.05, and freq*cond_blue, F(2180.22)=5.081, p<0.05, are all siginficant.
+
+The sequential anova tests the main effects of the first predictor before taking the other ones into account. If the data is unbalanced the sequential anova is not sufficient because it gives different results depending on which predictor is put first in the model. The Marginal anova (type III) tests each main effect adjusted to the other main effects. The marginal anova is taking interactions into account which make it a better fit for our model.
+
+```{r}
+#3.e.: Make a new model including a random slope from trial number (‘no’ in the log-ﬁle). Repeat 3.b. What does the inclusion of such a random slope model? Did it change the results?
+model1.1 <- lmer(rt ~ cond_blue + (1 + no | ID), face_exp_trans, REML= FALSE)
+
+model2.1 <- lmer(rt ~ cond_emo + (1 + no| ID), face_exp_trans, REML= FALSE)
+
+model3.1 <- lmer(rt ~ freq + (1 + no| ID), face_exp_trans, REML= FALSE)
+
+model4.1 <- lmer(rt ~ cond_blue * cond_emo + (1 + no | ID), face_exp_trans, REML= FALSE)
+
+model5.1 <- lmer(rt ~ cond_blue * freq + (1 + no| ID), face_exp_trans, REML= FALSE)
+
+model6.1 <- lmer(rt ~ freq * cond_emo + (1 + no | ID), face_exp_trans, REML= FALSE)
+
+model7.1 <- lmer(rt ~ cond_emo * freq * cond_blue + (1 + no | ID), face_exp_trans, REML = FALSE)
+
+#making a df to see which model has the best AIC value
+m_aic <- AIC(model1.1, model2.1, model3.1, model4.1, model5.1, model6.1, model7.1)
+mdl_com_df.1 <- tibble( Model = c("model1.1", "model2.1", "model3.1", "model4.1", "model5.1", "model6.1", "model7.1"),
+                          AIC=m_aic$AIC,)
+
+mdl_com_df.1
+
+
+summary(model4.1)
+```
+All of the variables in model 4.1 have significant values.
+
+```{r}
+#3.f.: Make a model comparison of model 3.a and 3.e using anova(). Did the inclusion of a random slope signiﬁcantly improve the model?
+summary(anova(model7, model4.1))
+r.squaredGLMM(model4.1)
+r.squaredGLMM((model7))
+```
+model 4.1 has a better AIC value and is therefore deemed to be better. It is to be noted that the two AIC values are very close.
+
+```{r}
+#3.g.: Response times are correlated in time which goes against the assumption of independence. It might therefore be an idea to model this by including a so-called auto-regressive component in the model (e.g. this is default in SPM analyses of fMRI-data). In lme(), this is done by adding the following to the model speciﬁcation: “cor=corAR1(,form=~1|ID)”. Make a new model comparison. Does that have an eﬀect?
+model4.1 <- lmer(rt ~ cond_blue * cond_emo + (1 + no | ID), face_exp_trans, REML= FALSE)
+
+model <- lme(rt ~ cond_blue * cond_emo, data = face_exp_trans, random= ~ 1 + no | ID, method = "ML", cor=corAR1(,form=~1|ID))
+model
+```
+
+4.a.: Comprehension question. If you were to report these results, which model would you use and why? Below are some ideas that you may want to consider:
+Rule number 1: Report the ﬁrst model you did.
+Rule number 2: Report the most sensible model.
+Rule number 3: Report the simplest model.
+Rule number 4: Report the most extensive and complete model.
+
+Rule number 2
+
+4.b.: Throughout part 3 of this exercise we made several models to choose from What is the problem of this strategy? (This is analogous to the motivation for using family-wise-error corrected p-values in the SPM analysis)
+
+4.c. Write a few lines, brieﬂy stating the results of the experiment in relation to the hypotheses, using the model you dicided upon in 4.a..
