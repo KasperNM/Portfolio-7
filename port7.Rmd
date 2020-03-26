@@ -1,0 +1,135 @@
+---
+title: "Port 7"
+author: "Kasper Michelsen"
+date: "3/25/2020"
+output: html_document
+---
+
+This assignment contains two major parts:
+A. Analyses of the behavioral data from an Emotional Face viewing experiment
+B. Analyses of the reported experiences when eating amimo acids instead of breakfast (a tryptophan depletion
+study)
+
+1. Understanding the experiment
+1.a.Comprehension question. Please explain which factor was between-participants and which were withinparticipants and why.
+1.b. What was the age range of the participants?
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(tidyverse, pastecs)
+
+face_exp_2016<- read.csv("face_exp_data_all_160310.csv", sep=";")
+face_exp_2017<- read.csv("face_exp_all_logs_2017.csv", sep=";")
+#Binding the two datasets together
+face_exp<-rbind(face_exp_2016,face_exp_2017)
+#conditions are coded in the "cond_blue", "cond_emo" and "freq" variables
+
+#1.a 
+#the proportions of blue/yellow stimuli is the factor that was between-participants , i.e. the two groups. Each participant were exposed to both the predictor variable of amount of blue/yellow and amount of happy/neutral/fearful faces, making both conditions within-participant predictors. This means, that the blue/yellow factor, is both between and within.
+
+#The proportions of blue/yellow stimuli can be considered between-participant factor. The participants in the two groups are therefore exposed to a different composition of stimuli, making it (the proportions of blue/yellow stimyli) a between participant factor.However, as the participants in each group also are exposed to the stimuli several times, making it a within participant design. Therefore the blue/yellow stimuli can also be considered a within-subject design. The amount of happy/neutral/fearful faces was equal for all groups, making it only a within-participant factor. 
+
+#1.b 
+#By investigating the dataset the age-range is from 19-27 years
+```
+
+2. Data exploring and preparation
+
+Make sure that factorial variables are coded as factors using the as.factor() function.
+2.a: make a box-plot of the data with RT on the y-axis and emotional condition on the x-axis. Make
+a box-plot for each of the color conditions by using “fill”. Use facet_wrap() to make two seperate graphs for each frequency group. Give the boxes colors that mathces the stimuli, eg. use " +
+scale_fill_manual(values=c(“yellow”,“blue”,“yellow”,“blue”,“yellow”,“blue”,“yellow”,“blue”))" .
+
+```{r}
+as.numeric(face_exp$rt)
+as.factor(face_exp$cond_emo)
+as.factor(face_exp$cond_blue)
+
+ggplot(face_exp, aes(x = cond_emo, y = rt, fill = img)) +
+  geom_boxplot()+
+  facet_wrap(~freq)+
+  scale_fill_manual(values=c("yellow","blue","yellow","blue","yellow","blue","yellow","blue"))+
+labs(x = "Condition Emotion", y = " Reaction Time")
+```
+
+2.b: Comprehension question. Explain why this plot shows that there is something wrong with the data.
+outliers and wrong answers prolly
+
+2.c.: Make a subset of the data, including only correct responses.
+
+```{r}
+as.factor(face_exp$correct_resp)
+corresp_face_data <- subset(face_exp, correct_resp==1)
+```
+
+
+2.d.: Make another boxplot similar to that in 2.a. Did it solve the observed problem?
+
+```{r}
+ggplot(corresp_face_data, aes(x = cond_emo, y = rt, fill = img)) +
+  geom_boxplot()+
+  facet_wrap(~freq)+
+  scale_fill_manual(values=c("yellow","blue","yellow","blue","yellow","blue","yellow","blue"))+
+labs(x = "Condition Emotion", y = " Reaction Time")
+```
+
+2.e.: Use the by() function and stat.desc (in library(pastecs)) to get descriptive measures for the different
+conditions (e.g. see Field’s book chapter 5.5.3.2.). Try to investigate the three hypotheses based on the
+descriptive statistics - would you expect any of the statistical analyses to be significant based on the descriptive
+stats?
+
+The experiment had the following behavioral hypotheses:
+H1: The index finger (blue) trials will lead to a shorter response time than middle finger (yellow) trials.
+H2: Fearful faces will yield a shorter response time than neutral.
+H3: Infrequent stimuli will yield longer responses time than frequent. This should surface as an interaction
+between color and frequency group.
+
+```{r}
+stat.desc(corresp_face_data$rt)
+stat.desc(corresp_face_data$cond_emo, norm=TRUE)
+stat.desc(corresp_face_data$cond_blue, norm = TRUE)
+```
+
+2.f.: Explore if the RT data is normally distributed using a qq-plot (e.g. qqnorm()).
+```{r}
+qqnorm(corresp_face_data$rt)
+
+```
+
+
+2.g.: log-transform the RT data.
+```{r}
+face_exp_trans <- corresp_face_data %>% mutate(rt_log = log(corresp_face_data$rt))
+                                              
+```
+
+
+2.h.: Use a qq-plot to explore if the transformed data appear more normal than the untransformed.
+```{r}
+qqnorm(face_exp_trans$rt_log)
+```
+
+
+2.i.: Make a plot that explores the response times for participants, individually, using a box-plot. Does
+anybody stick out as unusual?
+
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
