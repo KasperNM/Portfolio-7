@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 #1.a.Please explain which factor was between-participants and which were withinparticipants and why.
   #the proportions of blue/yellow stimuli is the factor that was between-participants , i.e. the two groups. Each participant were exposed to both the predictor variable of amount of blue/yellow and amount of neutral/fearful faces, making both conditions within-participant predictors. This means, that the blue/yellow factor, is both between and within. The time and frequency of the stimuli are also within participant predictors, but the response time is the outcome.
   
+  --- levels
+  
 #1.b. What was the age range of the participants?
   #19-27 years of age
 
@@ -27,7 +29,7 @@ face_exp <- rbind(face_exp_2016,face_exp_2017)
 #conditions are coded in the "cond_blue", "cond_emo" and "freq" variables
 
 ## Setup/load packages
-pacman::p_load(tidyverse, pastecs, nlme, lmerTest, sjPlot, broom)
+pacman::p_load(tidyverse, pastecs, nlme, lmerTest, sjPlot, broom, ggpubr)
 ```
 
 ```{r}
@@ -74,11 +76,11 @@ by(correct_resps$rt, list(correct_resps$cond_blue), stat.desc, basic = FALSE, no
 by(correct_resps$rt, list(correct_resps$cond_emo), stat.desc, basic = FALSE, norm=T)
 
 #H3: Infrequent stimuli will yield longer responses time than frequent. This should surface as an interaction between color and frequency group.
-by(correct_resps$rt, list(correct_resps$freq), stat.desc, basic = FALSE, norm=T)
+by(correct_resps$rt, list(correct_resps$freq, correct_resps$cond_blue), stat.desc, basic = FALSE, norm=T)
 ```
 H1: the two means for response time in regards to index finger are only slightly different, which is less than expected before running the trials.
 H2: the two means for the emotion exposed to the participant, i.e. the smiley, are only slightly different, which is less than expected before running the trials.
-H3: the two means for the frequency are only slightly different, which is less than expected before running the trials.
+H3: the two means for the frequency are only slightly different, which is less than expected before running the trials. NB: these results should be looked at as (b0,b1) and (y0,y1).  When doing so, it shows, that, though all means are largely similar, the before mentioned pairs are even more so.
 
 ```{r}
 #2.f.: Explore if the RT data is normally distributed using a qq-plot (e.g. qqnorm()). 
@@ -100,11 +102,16 @@ ggplot(face_exp_trans, aes(sample = rt_log)) + stat_qq() + stat_qq_line(colour =
 #2.i.: Make a plot that explores the response times for participants, individually, using a box-plot. Does anybody stick out as unusual?
 ggplot(correct_resps, aes(x=ID, y=rt, fill=ID)) + 
   geom_boxplot()+
-  labs(x = "Participant", y = " Reaction Time")
+  labs(title = "Participants response time", x = "Participant", y = " Reaction Time")
+
+#ggplot(face_exp_trans, aes(x=ID, y=rt_log, fill=ID)) + 
+#  geom_boxplot()+
+#  labs(title = "Log transformed data", x = "Participant", y = " Reaction Time")
 ```
 Anders has a much higher mean response time than most of the others.
-Camille has much variation in her own responses, which can be seen from the upper and lower quartile being large. 
+Camille has much variation in her responses, which can be seen from the upper and lower quartile being large. 
 Also, Julie, Savannah, Alberte and Martin are the only ones who have outliers below 0.5.
+No general trend was found. 
 
 ```{r}
 #3.a Make mixed eﬀects model where you predict reaction time using the three factors as ﬁxed eﬀects, and include random intercepts for each participant (use “ID” from the log). Include 2-way and 3-way interactions as well. To do this use lme() from the “nlme” package, and use maximum-likelihood as estimation method( method = “ML”).
@@ -131,8 +138,10 @@ mdl_com_df <- tibble( Model = c("model1", "model2", "model3", "model4", "model5"
                           AIC=m_aic$AIC,)
 
 mdl_com_df
+model7
 ```
-Model 7 has the best AIC value, -2137.346
+
+Model 7 has the best Log-likelihood value, 1078.67, further more, it has the best AIC value, -2137.346, therefore it was chosen for further testing.
 
 ```{r}
 #3.b.: Report the t-statistics using summary().
@@ -145,15 +154,16 @@ The cond_blue has a significant value of t(2180)=-2.79, p<0.05, so does the 2 wa
 #3.c.: Report the F-statistics using anova() and type=‘sequential’, which gives you type=‘I’ analysis.
 anova(model7, type='I')
 ```
-The cond_emo*cond_blue, F(2180.15)=5.618, p<0.05, and freq*cond_blue, F(2180.62)=5.310, p<0.05, are both siginficant.
+This shows that there fearful faces indeed do yield a longer response time, when combined with index/middle finger as a covariate ( F(2180.15)=5.618, p<0.05) and interaction between the frequency an image is shown and the response time of the participant, is significant as well (F(2180.62)=5.310, p<0.05)
 
 ```{r}
 #3.d.: Report the F-statistics using anova() and type=‘marginal’. Why might there be diﬀerences between results from 3.c and 3.d?
 anova(model7, type = 'marginal')
 ```
-The cond_blue, F(2180.33)=7.755, p<0.05, cond_emo*cond_blue, F(2180.29)=4.700, p<0.05, and freq*cond_blue, F(2180.22)=5.081, p<0.05, are all siginficant.
+When using the 'marginal' (type III) instead of seuential (type I), the data  reveals, the participants are significantly faster at pressing with their index finger instead of their middle finger (F(2180.33)=7.755, p<0.05). As the type I anova test showed, there is also a significant change in response time, when looking there fearful faces indeed do yield a longer response time, when combined with index/middle finger as a covariate (F(2180.29)=4.700, p<0.05) and interaction between the frequency an image is shown and the response time of the participant, is significant as well (F(2180.22)=5.081, p<0.05)
 
-The sequential anova tests the main effects of the first predictor before taking the other ones into account. If the data is unbalanced the sequential anova is not sufficient because it gives different results depending on which predictor is put first in the model. The Marginal anova (type III) tests each main effect adjusted to the other main effects. The marginal anova is taking interactions into account which make it a better fit for our model.
+
+  The sequential anova tests the main effects of the first predictor before taking the other ones into account. If the data is unbalanced the sequential anova is not sufficient because it gives different results depending on which predictor is put first in the model. The Marginal anova (type III) tests each main effect adjusted to the other main effects. The marginal anova is taking interactions into account which make it a better fit for our model.
 
 ```{r}
 #3.e.: Make a new model including a random slope from trial number (‘no’ in the log-ﬁle). Repeat 3.b. What does the inclusion of such a random slope model? Did it change the results?
@@ -169,7 +179,7 @@ model5.1 <- lmer(rt ~ cond_blue * freq + (1 + no| ID), face_exp_trans, REML= FAL
 
 model6.1 <- lmer(rt ~ freq * cond_emo + (1 + no | ID), face_exp_trans, REML= FALSE)
 
-model7.1 <- lmer(rt ~ cond_emo * freq * cond_blue + (1 + no | ID), face_exp_trans, REML = FALSE)
+model7.1 <- lmer(rt ~ cond_emo * freq * cond_blue + (1 + no | ID), face_exp_trans, REML = FALSE, method = "ML")
 
 #making a df to see which model has the best AIC value
 m_aic <- AIC(model1.1, model2.1, model3.1, model4.1, model5.1, model6.1, model7.1)
@@ -177,36 +187,126 @@ mdl_com_df.1 <- tibble( Model = c("model1.1", "model2.1", "model3.1", "model4.1"
                           AIC=m_aic$AIC,)
 
 mdl_com_df.1
+#it became clear during the task, that AIC were not important, nor was it to test all of these models (model7 was only relevant), still it has been purposedly kept.
 
-
-summary(model4.1)
+summary(model7.1)
 ```
-All of the variables in model 4.1 have significant values.
+cond_blue                 -4.079e-02  1.475e-02  2.170e+03  -2.765  0.00575 ** 
+cond_emo1:freqy            3.539e-03  1.976e-02  2.170e+03   0.179  0.85791    
+cond_emo1:cond_blue        4.736e-02  2.082e-02  2.168e+03   2.275  0.02300 *  
+freqy:cond_blue            4.184e-02  1.894e-02  2.170e+03   2.209  0.02730 * 
+
+
+cond_blue                 -4.148e-02  1.490e-02  2.180e+03  -2.785   0.0054 ** 
+cond_emo1:freqy            4.062e-03  1.995e-02  2.180e+03   0.204   0.8387    
+cond_emo1:cond_blue        4.559e-02  2.103e-02  2.180e+03   2.168   0.0303 *  
+freqy:cond_blue            4.310e-02  1.912e-02  2.180e+03   2.254   0.0243 * 
+
+The significant results are almost identitcal to the ones, where random slope was not specified. The results of response time only depending on which finger used (i.e. index or middle finger) shows slightly more significance (by 0.00035 in difference), while interactions of both which emotions shown and which finger to react with, and frequency and finger to react with, have slightly less significant reuslts (by 0.0703 and 0.0030).
 
 ```{r}
 #3.f.: Make a model comparison of model 3.a and 3.e using anova(). Did the inclusion of a random slope signiﬁcantly improve the model?
-summary(anova(model7, model4.1))
-r.squaredGLMM(model4.1)
-r.squaredGLMM((model7))
+anova(model7, model7.1)
 ```
-model 4.1 has a better AIC value and is therefore deemed to be better. It is to be noted that the two AIC values are very close.
+Both the log-likelihood (and the AIC value) is improved, but it is not by much.
 
 ```{r}
 #3.g.: Response times are correlated in time which goes against the assumption of independence. It might therefore be an idea to model this by including a so-called auto-regressive component in the model (e.g. this is default in SPM analyses of fMRI-data). In lme(), this is done by adding the following to the model speciﬁcation: “cor=corAR1(,form=~1|ID)”. Make a new model comparison. Does that have an eﬀect?
-model4.1 <- lmer(rt ~ cond_blue * cond_emo + (1 + no | ID), face_exp_trans, REML= FALSE)
 
-model <- lme(rt ~ cond_blue * cond_emo, data = face_exp_trans, random= ~ 1 + no | ID, method = "ML", cor=corAR1(,form=~1|ID))
-model
+model <- lme(rt ~ cond_blue * cond_emo * freq, data = face_exp_trans, random = ~ 1 + no | ID, method = "ML", cor = corAR1(form = ~1|ID))
+model #removing unsystematic varians.factor explaining more.
+
+anova(model7.1, model, type = 'I')  
+anova(model7.1, model, type = 'III')
 ```
 
-4.a.: Comprehension question. If you were to report these results, which model would you use and why? Below are some ideas that you may want to consider:
+
+  4.a.: Comprehension question. If you were to report these results, which model would you use and why? Below are some ideas that you may want to consider:
 Rule number 1: Report the ﬁrst model you did.
 Rule number 2: Report the most sensible model.
 Rule number 3: Report the simplest model.
 Rule number 4: Report the most extensive and complete model.
 
-Rule number 2
+Rule number 3, the simplest model. In this assignment we have used several reasonable data analytics to decode the data. However, when looking at the about, especially the log-Likelihood, the difference are far less than grand. The biggest difference within the models is between model7 and model. Model 7 is the simplest and only uses random intercept. The model on the other hand both uses random intercept, random slope and is trying to account for unsystematic varians (in this case, this might be lacking of a computer, language skills etc.). The log-Likelihood of the two models are are only differing by 23.6 - and taking the general trend of the log-likelihood into account (i.e. numbers above 1000) 23.6 is quite small.
 
-4.b.: Throughout part 3 of this exercise we made several models to choose from What is the problem of this strategy? (This is analogous to the motivation for using family-wise-error corrected p-values in the SPM analysis)
+It is not always the best to choose the simplest, but in these case, the results were so similar, that ''changing'' the output, was less beneficial than completely removing that cost and showing the (almost) unanalysed data.
 
-4.c. Write a few lines, brieﬂy stating the results of the experiment in relation to the hypotheses, using the model you dicided upon in 4.a..
+  4.b.: Throughout part 3 of this exercise we made several models to choose from. What is the problem of this strategy? (This is analogous to the motivation for using family-wise-error corrected p-values in the SPM analysis).
+
+Because this is strengthening the possibility of overfitting. Before receiving the data of an experiment a researcher should also, at least to some degree, have an idea of which analysis would be relevant to show the (possibly) significant results
+
+  4.c. Write a few lines, brieﬂy stating the results of the experiment in relation to the hypotheses, using the model you dicided upon in 4.a.
+
+```{r}
+summary(model7)
+```
+
+In this experiement three hypothesis were stated; H1: The index ﬁnger (blue) trials will lead to a shorter response time than middle ﬁnger (yellow) trials, H2: Fearful faces will yield a shorter response time than neutral and H3: Infrequent stimuli will yield longer responses time than frequent. This should surface as an interaction between color and frequency group.
+The data analysis consisted of mixed effects model only consisting random intercept, but not random slopes nor an auto-regressive component. via the data analysis it was found that there was a significant difference in response time when looking at which finger was used for key pressing (F(2180.33)=7.755, p<0.05), for this specific result it is important to keep mind that this is a main effect and it is hard to completely isolate this result from the other predictors. The result hænger godt sammen med H1.
+The interactions between the emotion shown, i.e. fearful or neutral, and which keypressed also showed significant results (F(2180.29)=4.700, p<0.05), showing that it took longer to respond to a fearful face, than a neutral one. This contradicts the original H2, that a fearful face, would cause a faster response.
+The last significant result was the interaction between frequency of stimuli shown and which finger to use for  key pressing (F(2180.22)=5.081, p<0.05). The significance of the this result leaves the experiment with the researcher unable to reject the hypotheses 1 and 3, there is evidence that it takes longer to press a key with participants middle finger than index finger, and showing the stimuli infrequently causes longer response time as well. However, hypothesis 2 can be rejected, since there is a significant contradiction.
+
+Assignment B
+```{r}
+#5
+#5.a Load data
+trypt_long<-read.csv(file='trypt_long.csv',header=TRUE,sep=",")
+
+trypt_long$ID<-as.factor(trypt_long$ID)
+
+trypt_long$time<-as.factor(trypt_long$time)
+```
+
+
+```{r}
+#use ggline to make nice line plot. Install ggpubr, if you haven't got it
+library(ggpubr)
+ggline(trypt_long, x = "time", y = "mood",col='Group', add = c("mean_se", "dodge"), palette = "jco")
+
+library(lmerTest)
+
+#Relevel to make the reference group "loaded"
+trypt_long$Group<-relevel(trypt_long$Group,'loaded') #Relevel to make the reference time "7.05"
+
+trypt_long$time<-relevel(trypt_long$time,'7.05')
+
+#Make mixed effects model with Group and time as fixed effects and ID as random effect
+trypt_model<-lmerTest::lmer(mood~Group*time+(1|ID), data = trypt_long)
+
+#Get summary statistics
+trypt_res<-summary(trypt_model)
+```
+
+
+```{r}
+#Apply Bonferroni correction for multiple comparisons to p-values (9 tests)
+# and round a bit (5 decimals)
+trypt_res$coefficients2<-matrix(round(c(trypt_res$coefficients,trypt_res$coefficients[,5]*9), digits=5),ncol=6)
+
+#Add names to the new results matrix
+colnames(trypt_res$coefficients2)<-c(colnames(trypt_res$coefficients),'p(bonf)')
+rownames(trypt_res$coefficients2)<-c(rownames(trypt_res$coefficients))
+#Show us what you've got trypt_res$coefficients2
+
+
+#Use library(emmeans) to get more comprehensible pairwise interactions (uncorrected for multiple comparisons)
+pacman::p_load(emmeans)
+
+sm = emmeans(trypt_model, ~Group*time)
+
+contrast(sm, interaction = "pairwise")
+```
+5.b. Report and discuss the findings. What do they mean? How do they relate to the hypotheses?
+The findings show the pairwise comparisons of two groups between two time-points. two were found to be significant:
+loaded - control   7.05 - 6.55    -17.240 5.30 80 -3.251  0.0017 
+loaded - control   7.05 - 12      -14.127 5.30 80 -2.664  0.0093
+There we found significant results in the difference between the control- and the loaded group
+
+hypothesis 1:Being depleted of tryptophan is hypothesised to lead to alterations of mood.
+There was not found any significant results suggesting that depletion of trytophan alterates participants mood. Therefore the hypothesis cannot be rejected, nor accepted.
+
+Hypothesis 2: forcing yourself to eat a nasty powder at 7.00
+Eventhough we had significant results on the difference in mood alterations between the depletion group and control group in the timespan between 6:55-7:05, we do not have significant results between the loaded and control which mean that the hypothesis cannot be accepter 
+
+Hypothesis 3: becoming hungry at 12.00.
+
